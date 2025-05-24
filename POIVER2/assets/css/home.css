@@ -670,6 +670,97 @@ transform: translateX(-50%) translateY(-50%);
     align-items: center;
   }
   
+  @keyframes rainbowBackground {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+
+.heading-icons {
+  display: flex;
+  align-items: center; /* Centra verticalmente los iconos */
+  justify-content: flex-end; /* Alinea los iconos a la derecha */
+  height: 100%; /* Asegura que tome toda la altura de la cabecera */
+}
+
+.heading-icons .btn {
+  color: white;
+  background: none;
+  border: none;
+  font-size: 24px; /* Ajusta según sea necesario */
+  padding: 5px 8px; /* Ajusta el padding */
+  margin-left: 5px; /* Espacio entre iconos si añades más */
+}
+
+.heading-icons .btn:hover,
+.heading-icons .btn:focus {
+  color: #f0f0f0; /* Un ligero cambio de color al pasar el mouse */
+  background: rgba(255,255,255,0.1); /* Un sutil fondo al pasar el mouse */
+}
+
+/* Ajuste para la barra de progreso y su label */
+.heading-name label {
+    font-size: 0.8em;
+    color: #f0f0f0; /* Un color más suave para el texto */
+    margin-bottom: 2px; /* Pequeño espacio debajo */
+}
+.heading-name progress {
+    height: 8px; /* Barra de progreso más delgada */
+    border-radius: 4px;
+}
+.heading-name progress::-webkit-progress-bar {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+.heading-name progress::-webkit-progress-value {
+    background-color: #fff; /* Color del progreso */
+    border-radius: 4px;
+}
+.heading-name progress::-moz-progress-bar { /* Firefox */
+    background-color: #fff;
+    border-radius: 4px;
+}
+
+
+
+.group-avatar-stacked {
+  position: relative;
+  width: 51px; /* Ancho del contenedor del avatar principal */
+  height: 51px; /* Alto del contenedor del avatar principal */
+  border-radius: 50%;
+  background-color: #ccc; /* Un fondo por si no hay imágenes */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* Para que los avatares no se salgan del círculo */
+}
+
+.group-avatar-stacked .stacked-avatar {
+  border-radius: 50%;
+  width: 22px; /* Tamaño para 4 avatares en un círculo de 51px */
+  height: 22px;
+  margin: 1px; /* Pequeño espacio entre ellos */
+  object-fit: cover; /* Para que las imágenes no se deformen */
+  border: 1px solid white; /* Borde para distinguir */
+}
+
+/* Si solo hay 1 o 2, podrías hacerlos más grandes */
+.group-avatar-stacked .stacked-avatar:nth-child(1):nth-last-child(1) { /* Solo 1 */
+  width: 45px;
+  height: 45px;
+}
+.group-avatar-stacked .stacked-avatar:nth-child(1):nth-last-child(2),
+.group-avatar-stacked .stacked-avatar:nth-child(2):nth-last-child(1) { /* Solo 2 */
+  width: 30px;
+  height: 30px;
+}
+
+.sideBar-name .name-meta i.zmdi-accounts { /* Para el icono de grupo */
+    vertical-align: middle;
+}
+
+
 }
 
 

@@ -64,36 +64,35 @@
   $QuerySeleccionado     = mysqli_query($con, $QueryUserSeleccionado);
 
   while ($rowUser = mysqli_fetch_array($QuerySeleccionado)) {
-  ?>
-    <div class="status-bar"> </div>
-    <div class="row heading">
-      <div class="col-sm-2 heading-avatar">
-        <a href="./" style="color: #fff;">
-          <div class="heading-avatar-icon">
-            <i class="zmdi zmdi-arrow-left" style="font-size:20px"></i>
-            <img src="<?php echo 'imagenesperfil/' . $rowUser['imagen']; ?>">
-          </div>
-        </a>
-      </div>
-      <div class="col-sm-3 heading-name">
-
-
-
-
-        <a class="heading-name-meta">
-          <?php echo $rowUser['nombre_apellido']; ?>
-        </a>
-
-
-        <div style="margin: 0px 0;">
-  <label>Progreso de actividad:
-  <progress id="chatProgress" value="0" max="100" style="width: 100%; height: 20px;"></progress></label>
-</div>
-
-
-      </div>
-
+?>
+  <div class="status-bar"> </div>
+  <div class="row heading">
+    <div class="col-sm-2 col-xs-2 heading-avatar">
+      <a href="./" style="color: #fff;">
+        <div class="heading-avatar-icon">
+          <i class="zmdi zmdi-arrow-left" style="font-size:20px; vertical-align: middle; margin-right: 5px;"></i>
+          <img src="<?php echo 'imagenesperfil/' . $rowUser['imagen']; ?>" style="vertical-align: middle;">
+        </div>
+      </a>
     </div>
+    <div class="col-sm-7 col-xs-7 heading-name" style="padding-left: 0px;"> 
+      <a class="heading-name-meta" style="padding-left:0px;">
+        <?php echo $rowUser['nombre_apellido']; ?>
+      </a>
+      <div style="margin: 0px 0;">
+        <label style="font-size: 0.8em; color: #f0f0f0;">Progreso de actividad:
+        <progress id="chatProgress" value="0" max="100" style="width: 100%; height: 10px;"></progress></label>
+      </div>
+    </div>
+    <div class="col-sm-3 col-xs-3 heading-icons text-right" style="padding-top: 5px;"> 
+      <button id="videoCallBtn" class="btn btn-sm" title="Iniciar videollamada" style="color: white; background: none; border: none; font-size: 28px; padding: 0px 10px; vertical-align: middle;">
+          <i class="zmdi zmdi-videocam"></i>
+      </button>
+    
+    </div>
+  </div>
+
+
 
     <div class="row message" id="conversation">
       <?php
@@ -249,227 +248,179 @@
     
   <?php } ?>
 
- 
+ <script type="text/javascript">
+    // Usar un nombre de variable que sea menos probable que colisione globalmente, 
+    // y lo inicializamos dentro del scope de esta carga de chat.
+    var currentChatProgresoView; // Renombrada para evitar cualquier posible colisión futura
 
-
-  <script type="text/javascript">
-let progreso = 0;
-
-    $(function() {
-      scroll();
-
-      var idConectado = "<?php echo $idConectado; ?>";
-
-      //console.log('Id User: ' + idConectado);
-
-      //Buscando mensajes nuevos cada 4 segundos
-      function actualizar() {
-        var valor = 0;
-        var bucle = setInterval(function() {
-          valor++;
-          //console.log('Buscando mensajes sin leer ' + valor);
-          if (valor == 8) {
-            $.ajax({
-              type: "POST",
-              url: "buscarMensajesNuevos.php",
-              dataType: "json",
-              data: {
-                idConectado: idConectado
-              },
-              success: function(data) {
-                //console.log(data);
-                if (data.msj == true) {
-                  $.post('MsjsUsers.php', {
-                    id: idConectado
-                  }, function(data) {
-                    $('#conversation').html(data);
-                    var scrolltoh = $('#conversation')[0].scrollHeight;
-                    $('#conversation').scrollTop(scrolltoh);
-                  })
-                  //console.log('si hay msjs');
-                } else {
-                  //console.log('no hay msjs');
-                }
-              }
-            })
-            valor = 0;
-          }
-        }, 2000);
+    $(function() { // Esto se ejecuta cuando el HTML de UserSeleccionado.php está listo en el DOM
+      currentChatProgresoView = 0; // Inicializar/resetear el progreso para esta vista de chat
+      // Intentar obtener el valor de progreso si ya existe para este chat (ej. desde un data-attribute o localStorage)
+      // Por ahora, lo reiniciamos siempre al cargar.
+      if ($('#chatProgress').length > 0) {
+          $('#chatProgress').val(currentChatProgresoView); // Actualizar la barra de progreso visual
       }
 
 
-    
+      function scrollConversationToEnd() {
+        var conversation = $('#conversation');
+        if (conversation.length > 0) {
+          conversation.animate({ scrollTop: conversation[0].scrollHeight }, 500); // Reducido el tiempo para ser más rápido
+        }
+      }
+      scrollConversationToEnd(); // Llamar al cargar
+
+      var idConectado = "<?php echo $idConectado; ?>";
+      var idUsuarioChatActual = $("input[name='to_id']", "#formenviarmsj").val(); // Obtener el ID del usuario con el que se chatea
+
+      // Función para buscar mensajes nuevos (tu lógica existente adaptada)
+      var mensajesInterval;
+      function iniciarActualizacionMensajes() {
+        clearInterval(mensajesInterval); // Limpiar intervalo anterior
+        mensajesInterval = setInterval(function() {
+          // Solo busca si la ventana está activa/visible (opcional, para optimizar)
+          // if (document.hasFocus()) { 
+            $.ajax({
+                type: "POST",
+                url: "buscarMensajesNuevos.php", // Este script determina el 'clickUser' desde la BD basado en 'idConectado'
+                dataType: "json",
+                data: { idConectado: idConectado },
+                success: function(data) {
+                    if (data.msj == true) { // Si buscarMensajesNuevos indica que hay msjs nuevos para el usuario actual EN el chat activo
+                        $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
+                           scrollConversationToEnd();
+                        });
+                    }
+                }
+            });
+          // }
+        }, 8000); // Llama cada 8 segundos
+      }
+      iniciarActualizacionMensajes();
 
 
+      // Manejo del envío de mensajes al presionar Enter
+      $("#formenviarmsj .input-msg").keypress(function(e) {
+        if (e.which == 13 && $(this).val().trim() !== '') {
+          e.preventDefault(); 
 
-
-      actualizar(); //Llamado a la funcion.
-
-
-      $(".conversation-compose").keypress(function(e) {
-        if (e.which == 13) {
-
+          var form = $("#formenviarmsj");
           var url = "acciones/RegistMsj.php";
           $.ajax({
             type: "POST",
             url: url,
-            data: $("#formenviarmsj").serialize(),
-            complete: function(data) {
-              scroll(); //llamando la funcion
-            },
+            data: form.serialize(),
             success: function(data) {
+              if ($('#chatProgress').length > 0) {
+                  currentChatProgresoView += 5; 
+                  if (currentChatProgresoView >= 100) {
+                    alert("¡Felicidades! Has ganado una mejora de emojis 🎉😎✨");
+                    $('#conversation').css({
+                      'background': 'linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)',
+                      'background-size': '200% 200%',
+                      'animation': 'rainbowBackground 5s ease infinite'
+                    });
+                    setTimeout(function(){
+                      $('#conversation').css({
+                        'background': 'url(\'assets/img/fondochat.jpg\')', // Ruta desde la raíz
+                        'animation': 'none'
+                      });
+                    }, 10000);
+                    currentChatProgresoView = 0; 
+                  }
+                  $('#chatProgress').val(currentChatProgresoView);
+              }
 
-              progreso += 5;
-              if (progreso === 100) {
-  alert("¡Felicidades! Has ganado una mejora de emojis 🎉😎✨");
-  progreso=0;
-}
- 
-
-          $('#chatProgress').val(progreso);
-
-
-              $("#conversation").load('MsjsUsers.php?id=' + idConectado);
-              //$('#conversation').html(data);
-              $("#message").val(""); //limpiar el input del msg
-              $(".audio")[0].play(); //reproducir audio de envio
+              $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
+                scrollConversationToEnd();
+              }); 
+              $("#formenviarmsj .input-msg").val("");
+              if ($(".audio").length > 0) $(".audio")[0].play();
             }
           });
           return false;
         }
       });
 
-
+      // Lógica para mostrar/ocultar forms de enviar imagen
       $("#formenviaimg").hide();
-
       $("#mostrarformenviarimg").click(function() {
         $("#formnormal").hide();
         $("#formenviaimg").show(200);
       });
-
       $("#volverformnormal").click(function() {
         $("#formenviaimg").hide();
         $("#formnormal").show(200);
       });
 
-    });
+      // Lógica para enviar imágenes (la tuya, adaptada para recargar mensajes)
+      var enviandoImagen = false; 
+      $('body').off('click', '#botonenviarimg').on('click', '#botonenviarimg', async function(e) {
+        e.preventDefault();
+        if (enviandoImagen) return;
+        enviandoImagen = true; 
 
-
-    /******ENVIANDO FOR DE IMAGEN*****/
-    var enviandoImagen = false; // Variable para rastrear si se está enviando una imagen
-    // Unir el evento clic al botón solo una vez en el documento cargado
-    $('body').off('click', '#botonenviarimg').on('click', '#botonenviarimg', async function(e) {
-      e.preventDefault();
-
-      if (enviandoImagen) {
-        return; // Si ya se está enviando una imagen, no hacer nada
-      }
-
-      enviandoImagen = true; // Establecer la bandera de envío de imagen
-
-      const form = $(this).closest('form')[0];
-      const formData = new FormData(form);
-      const idConectado = "<?php echo $idConectado; ?>";
-
-      // Validando que no envíen el formulario sin imagen
-      const namearchivo = $("#uploadFile").val();
-      if (!namearchivo) {
-        alert("Debes seleccionar una imagen");
-        return;
-      }
-
-      try {
-        const response = await fetch('acciones/archivo.php', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error('Error en la solicitud');
+        const formElement = $(this).closest('form')[0];
+        const formData = new FormData(formElement);
+        // const idConectado = "<?php echo $idConectado; ?>"; // Ya está definido arriba
+        // const idUsuarioChatActual = $("input[name='to_id']", formElement).val(); // Obtener to_id del form actual
+        
+        const namearchivo = $("#uploadFile", formElement).val();
+        if (!namearchivo) {
+          alert("Debes seleccionar una imagen");
+          enviandoImagen = false;
+          return;
         }
 
-        const data = await response.text();
-        $("#conversation").html(data);
-        $(".audio")[0].play(); // Reproducir audio de envío
-
-        // Volver al formulario de mensaje
-        $("#formenviaimg").hide();
-        $("#formnormal").show(200);
-
-        // Actualizar conversación
-        const updatedData = await $.post('MsjsUsers.php', {
-          id: idConectado
-        });
-        $('#conversation').html(updatedData);
-
-
-
-        const scrolltoh = $('#conversation')[0].scrollHeight;
-        $('#conversation').scrollTop(scrolltoh);
-
-        // Restablecer la variable
-        enviandoImagen = false;
-
-        // Restablecer el formulario
-        form.reset();
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    });
-  </script>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<script>
-  $(document).ready(function () {
-    // Valor inicial del progreso (opcionalmente podrías recuperarlo de PHP o localStorage)
-    let progreso = 0;
-
-    // Evento cuando se envía el formulario
-    $('#formenviarmsj').on('submit', function (e) {
-      e.preventDefault(); // Evita el envío automático del formulario
-      
-      const formData = $(this).serialize(); // Recolecta los datos del formulario
-
-      // Simulación del envío con AJAX (deberías adaptarlo a tu PHP real)
-      $.ajax({
-        url: 'enviar_mensaje.php', // Ruta a tu script PHP que procesa el mensaje
-        type: 'POST',
-        data: formData,
-        success: function (response) {
-          // Aquí puedes validar la respuesta si lo deseas
+        try {
+          const response = await fetch('acciones/archivo.php', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!response.ok) throw new Error('Error en la solicitud de subida de archivo');
           
-          // Incrementa el progreso, por ejemplo, 10% por mensaje
-          progreso += 10;
-          if (progreso > 100) progreso = 100;
+          // const data = await response.text(); // archivo.php no debería devolver HTML para toda la conversación
+                                            // sino solo una confirmación o error.
+                                            // La recarga de mensajes se hace después.
 
-          $('#chatProgress').val(progreso);
+          if ($(".audio").length > 0) $(".audio")[0].play(); 
 
-          // Limpia el campo del mensaje
-          $('#message').val('');
-        },
-        error: function () {
-          alert('Hubo un error al enviar el mensaje.');
+          $("#formenviaimg").hide();
+          $("#formnormal").show(200);
+
+          $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
+            scrollConversationToEnd();
+          });
+          
+          formElement.reset();
+        } catch (error) {
+          console.error('Error al enviar imagen:', error);
+          alert('Error al enviar la imagen.');
+        } finally {
+          enviandoImagen = false;
         }
       });
+
+      // Script para Jitsi (ya lo tienes, asegúrate que #videoCallBtn exista y sea único)
+      $('body').off('click', '#videoCallBtn').on('click', '#videoCallBtn', function() {
+        const user1_id = parseInt("<?php echo $idConectado; ?>");
+        const user2_id = parseInt(idUsuarioChatActual); // Ya tenemos el ID del otro usuario
+        
+        let roomNameBase = "poiChatVideo_";
+        if (user1_id < user2_id) {
+            roomNameBase += user1_id + "_" + user2_id;
+        } else {
+            roomNameBase += user2_id + "_" + user1_id;
+        }
+        const roomName = roomNameBase.replace(/\s+/g, "_").toLowerCase();
+        const jitsiUrl = `https://meet.jit.si/${roomName}`;
+        window.open(jitsiUrl, "_blank");
+      });
+
     });
-  });
-</script>
-<script>
-  document.getElementById("videoCallBtn").addEventListener("click", function () {
-    const username = "Carlos"; // Cambia esto dinámicamente si tienes varias personas
-    const roomName = "chatapp_" + username.replace(/\s+/g, "_").toLowerCase();
-
-    // Abrir videollamada en una nueva ventana usando Jitsi
-    const jitsiUrl = `https://meet.jit.si/${roomName}`;
-    window.open(jitsiUrl, "_blank");
-  });
-</script>
-
-
-
-
-
+  </script>
 </body>
-
 </html>
+
+
+  

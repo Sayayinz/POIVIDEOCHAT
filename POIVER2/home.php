@@ -45,8 +45,34 @@ if (isset($_SESSION['email_user']) != "") {
 
           </div>
         </div>
-        <!-------->
+        <!--- grupos----->
+<div id="createGroupModal" style="display:none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+  <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 5px;">
+    
+  <form id="formCrearGrupo">
+      <div class="form-group">
+        <label for="nombre_grupo">Nombre del Grupo:</label>
+        <input type="text" class="form-control" id="nombre_grupo" name="nombre_grupo" required>
+      </div>
+      <div class="form-group">
+        <label>Seleccionar Miembros:</label>
+        <div id="listaUsuariosParaGrupo" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+          
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Crear Grupo</button>
+    </form>
 
+
+  <span class="closeCreateGroup" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor:pointer;">&times;</span>
+    <h2>Crear Nuevo Grupo</h2>
+    
+  </div>
+</div>
+
+
+
+        
         <!----contenedor del chat--->
         <div class="col-sm-8 conversation">
           <div id="capausermsj">
@@ -63,51 +89,147 @@ if (isset($_SESSION['email_user']) != "") {
     <script type="text/javascript" src="assets/js/jquery-3.1.1.min.js"></script>
     <script src="http://netdna.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script type="text/javascript">
-      $(function() {
-        load2();
+  
+  // home.php
+$(function() { // Este es el $(document).ready() principal
 
-        function load2() {
-          window.setTimeout(function() {
-            $.post('users.php', function(data) {
-              $('#myusers').html(data);
+    load2(); // Carga inicial
+
+    function load2() {
+        // console.log("load2: Iniciando carga de users.php");
+        window.setTimeout(function() {
+            $.post('users.php', { fetch: 1, idConectado: "<?php echo $idConectado; ?>" }, function(data) {
+                $('#myusers').html(data); // Aquí se inserta el contenido de users.php, incluyendo el botón #showCreateGroupModal
+                // console.log("load2: users.php cargado en #myusers");
             });
-          }, 1000);
-        }
+        }, 500); // Un pequeño retraso, asegúrate que sea suficiente o considera otras estrategias si hay problemas de tiempo.
+    }
 
-
-        $(function() {
-          if ($(".side-one")[0]) {
-            users();
-          }
-          users();
-
-          setInterval(function() {
-            if ($(".side-one")[0]) {
-              users();
+    // Lógica de actualización periódica (tu código original, revisa la frecuencia)
+    var intervalUsers;
+    function startPeriodicUserUpdate(){
+        // console.log("startPeriodicUserUpdate: iniciando intervalo");
+        clearInterval(intervalUsers); // Limpia cualquier intervalo anterior
+        intervalUsers = setInterval(function() {
+            // console.log("Intervalo: Actualizando users.php");
+            // Solo actualiza si el panel de usuarios está visible y no hay un modal activo que pueda interferir
+            if ($('#myusers').is(':visible') && $('#createGroupModal:visible').length === 0) {
+                users();
             }
-            users();
-          }, 10000);
+        }, 15000); // Actualizar cada 15 segundos, por ejemplo.
+    }
 
-        });
-
-        function users() {
-          load_data = {
-            'fetch': 1
-          };
-          window.setTimeout(function() {
-            $.post('users.php', load_data, function(data) {
-              $('#myusers').html(data);
-            });
-          }, 10000);
+  function users() {
+    var load_data = {
+        'fetch': 1,
+        'idConectado': "<?php echo $idConectado; ?>"
+    };
+    $.post('users.php', load_data, function(data) {
+        // console.log("Respuesta de users.php al refrescar:", data); // Verifica esta salida en la consola
+        if (data.trim() === "") {
+            // console.error("users.php devolvió una respuesta vacía.");
+            // $('#myusers').html("<p>Error al cargar la lista de contactos.</p>");
+        } else {
+            var currentScroll = $('#myusers .sideBar').scrollTop();
+            try {
+                $('#myusers').html(data); // Este es el punto crítico
+                // Intenta seleccionar el primer chat si ninguno está seleccionado
+                if ($('#myusers .sideBar-body.seleccionado').length === 0 && $('#myusers .sideBar-body').length > 0) {
+                    // console.log("Ningún chat seleccionado, seleccionando el primero.");
+                    // $('#myusers .sideBar-body').first().trigger('click'); // Esto podría causar un bucle si hay problemas. Comentar si es necesario.
+                }
+                $('#myusers .sideBar').scrollTop(currentScroll);
+            } catch (e) {
+                // console.error("Error al procesar el HTML de users.php:", e);
+                // $('#myusers').html("<p>Error al mostrar la lista de contactos.</p>");
+            }
         }
-      });
+    }).fail(function(xhr, status, error) {
+        // console.error("Fallo la petición POST a users.php:", status, error);
+        // $('#myusers').html("<p>No se pudo cargar la lista de contactos. Error: " + status + "</p>");
+    });
+}
+
+   
+    setTimeout(startPeriodicUserUpdate, 2000); // Comienza las actualizaciones periódicas un poco después de la carga inicial
+
+    // MANEJADORES DE EVENTOS PARA EL MODAL
+    // 
+    $('#myusers').on('click', '#showCreateGroupModal', function() {
+      
+        $('#createGroupModal').show();
+      $.ajax({
+    url: 'acciones/listar_usuarios_para_grupo.php',
+    type: 'GET',
+    // data: { idConectado: "<?php echo $idConectado; ?>" }, // Asegúrate si tu PHP necesita este dato
+    success: function(data) {
+        console.log("AJAX Success. Datos recibidos de listar_usuarios_para_grupo.php:");
+        console.log(data); // <<--- IMPORTANTE: MIRA QUÉ HAY AQUÍ EN LA CONSOLA
+        $('#listaUsuariosParaGrupo').html(data);
+        if ($('#listaUsuariosParaGrupo').html().trim() === "") {
+            console.warn("listaUsuariosParaGrupo está vacío después de .html(data), aunque data podría tener contenido.");
+        }
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+        console.error("Error AJAX al cargar lista de usuarios: ", textStatus, errorThrown);
+        console.log("Respuesta del servidor (error):", jqXHR.responseText);
+        $('#listaUsuariosParaGrupo').html('<p>Error al cargar la lista de usuarios. (Detalles: '+ textStatus + ' - ' + errorThrown +')</p>');
+    }
+    });
+
+});
+
+ 
+    $('.closeCreateGroup').on('click', function() {
+        // console.log("Modal cerrado con X");
+        $('#createGroupModal').hide();
+    });
+
+    $(window).on('click', function(event) {
+        // Comprueba si el clic fue directamente sobre el fondo del modal
+        if ($(event.target).is('#createGroupModal')) {
+            // console.log("Modal cerrado por clic afuera");
+            $('#createGroupModal').hide();
+        }
+    });
+
+
+
+
+
+    
+    // Envío del formulario de creación de grupo
+    $('#formCrearGrupo').on('submit', function(e) {
+        e.preventDefault();
+        // console.log("Formulario #formCrearGrupo enviado");
+        var formData = $(this).serialize();
+        $.ajax({
+            url: 'acciones/crear_grupo.php',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 'success') {
+                    alert(response.message);
+                    $('#createGroupModal').hide();
+                    users(); // Actualiza la lista para mostrar el nuevo grupo
+                } else {
+                    alert('Error al crear grupo: ' + (response.message || 'Ocurrió un error desconocido.'));
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // console.error("Error AJAX creando grupo: ", textStatus, errorThrown, jqXHR.responseText);
+                alert('Error de comunicación al crear el grupo. Verifique la consola para más detalles.');
+            }
+        });
+    });
+
+}); // Fin de $(function() {}) principal
     </script>
-
-
   </body>
-
-  </html>
-<?php } else {
+</html>
+<?php
+} else {
   echo '<script type="text/javascript">
     alert("Debe Iniciar Sesion");
     window.location.assign("index.php");

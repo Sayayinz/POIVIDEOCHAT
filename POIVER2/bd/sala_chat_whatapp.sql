@@ -135,3 +135,36 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+
+CREATE TABLE `grupos` (
+  `id_grupo` INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre_grupo` VARCHAR(255) NOT NULL,
+  `id_creador` INT NOT NULL,
+  `imagen_grupo` VARCHAR(255) DEFAULT NULL, -- Opcional: para ícono de grupo
+  `fecha_creacion` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`id_creador`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+
+CREATE TABLE `miembros_grupo` (
+  `id_relacion` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_grupo` INT NOT NULL,
+  `id_usuario` INT NOT NULL,
+  `fecha_union` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`id_grupo`) REFERENCES `grupos`(`id_grupo`) ON DELETE CASCADE,
+  FOREIGN KEY (`id_usuario`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `grupo_usuario_unique` (`id_grupo`, `id_usuario`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+ALTER TABLE `msjs`
+  ADD COLUMN `id_grupo_receptor` INT DEFAULT NULL AFTER `to_id`,
+  ADD CONSTRAINT `fk_msjs_grupo` FOREIGN KEY (`id_grupo_receptor`) REFERENCES `grupos`(`id_grupo`) ON DELETE SET NULL;
+
+
+
+ALTER TABLE `clickuser`
+ADD COLUMN `tipoClick` ENUM('user', 'group') DEFAULT 'user' AFTER `clickUser`;
+  
+
+  
