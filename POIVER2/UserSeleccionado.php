@@ -16,7 +16,6 @@
       cursor: pointer;
     }
 
-    /**style para el boton examinar***/
     .uploadFile {
       visibility: hidden;
     }
@@ -40,157 +39,191 @@
       cursor: pointer;
       color: #333;
     }
+    /* Estilo para el botón de videollamada */
+    #videoCallBtn {
+        color: white;
+        background: none;
+        border: none;
+        font-size: 28px; /* Ajusta según tu diseño */
+        padding: 0px 10px;
+        vertical-align: middle;
+        cursor: pointer;
+    }
+    #videoCallBtn:hover {
+        color: #f0f0f0;
+    }
+    /* Animación para el fondo de recompensa */
+    @keyframes rainbowBackground {
+        0%{background-position:0% 50%}
+        50%{background-position:100% 50%}
+        100%{background-position:0% 50%}
+    }
   </style>
 </head>
 
 <body>
 
   <?php
-  sleep(1);
+  session_start(); 
   header("Content-Type: text/html;charset=utf-8");
 
   include('config/config.php');
-  $IdUser                 = $_REQUEST['id'];
-  $idConectado            = $_REQUEST['idConectado'];
-  $email_user             = $_REQUEST['email_user'];
+  
+  $IdUser                 = isset($_REQUEST['id']) ? (int)$_REQUEST['id'] : 0;
+  $idConectado            = isset($_REQUEST['idConectado']) ? (int)$_REQUEST['idConectado'] : (isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0);
+  $email_user             = isset($_REQUEST['email_user']) ? filter_var($_REQUEST['email_user'], FILTER_SANITIZE_EMAIL) : (isset($_SESSION['email_user']) ? $_SESSION['email_user'] : '');
+  // $tipoChatSeleccionado   = isset($_REQUEST['type']) ? $_REQUEST['type'] : 'user'; // Ya no se usa aquí directamente
 
-  //Actualizando los mensajes no leidos ya que estoy entrando en mis mensajes
-  if (!empty($IdUser)) {
-    $leyendoMsj = ("UPDATE msjs SET leido = 'SI' WHERE  user_id='$IdUser' AND to_id='$idConectado' ");
-    $queryLeerMsjs = mysqli_query($con, $leyendoMsj);
+  if ($IdUser == 0 || $idConectado == 0) {
+      echo "<p>Error: Faltan datos para cargar el chat.</p>";
+      exit;
   }
 
-  $QueryUserSeleccionado = ("SELECT * FROM users WHERE id='$IdUser' LIMIT 1 ");
-  $QuerySeleccionado     = mysqli_query($con, $QueryUserSeleccionado);
+  if (!empty($IdUser)) {
+    $stmtLeyendo = mysqli_prepare($con, "UPDATE msjs SET leido = 'SI' WHERE user_id=? AND to_id=? AND tipo_chat='privado'");
+    if ($stmtLeyendo) {
+        mysqli_stmt_bind_param($stmtLeyendo, "ii", $IdUser, $idConectado);
+        mysqli_stmt_execute($stmtLeyendo);
+        mysqli_stmt_close($stmtLeyendo);
+    }
+  }
 
-  while ($rowUser = mysqli_fetch_array($QuerySeleccionado)) {
-?>
+  $QueryUserSeleccionado = "SELECT * FROM users WHERE id= ? LIMIT 1";
+  $stmtUserSel = mysqli_prepare($con, $QueryUserSeleccionado);
+  mysqli_stmt_bind_param($stmtUserSel, "i", $IdUser);
+  mysqli_stmt_execute($stmtUserSel);
+  $QuerySeleccionado = mysqli_stmt_get_result($stmtUserSel);
+
+
+  if ($QuerySeleccionado && $rowUser = mysqli_fetch_array($QuerySeleccionado)) {
+  ?>
   <div class="status-bar"> </div>
   <div class="row heading">
+  
     <div class="col-sm-2 col-xs-2 heading-avatar">
       <a href="./" style="color: #fff;">
         <div class="heading-avatar-icon">
           <i class="zmdi zmdi-arrow-left" style="font-size:20px; vertical-align: middle; margin-right: 5px;"></i>
-          <img src="<?php echo 'imagenesperfil/' . $rowUser['imagen']; ?>" style="vertical-align: middle;">
+          <img src="<?php echo 'imagenesperfil/' . htmlspecialchars($rowUser['imagen']); ?>" style="vertical-align: middle; width:40px; height:40px; border-radius:50%;">
         </div>
       </a>
     </div>
-    <div class="col-sm-7 col-xs-7 heading-name" style="padding-left: 0px;"> 
+    <div class="col-sm-7 col-xs-7 heading-name" style="padding-left: 0px;">
       <a class="heading-name-meta" style="padding-left:0px;">
-        <?php echo $rowUser['nombre_apellido']; ?>
+        <?php echo htmlspecialchars($rowUser['nombre_apellido']); ?>
       </a>
       <div style="margin: 0px 0;">
         <label style="font-size: 0.8em; color: #f0f0f0;">Progreso de actividad:
         <progress id="chatProgress" value="0" max="100" style="width: 100%; height: 10px;"></progress></label>
       </div>
     </div>
-    <div class="col-sm-3 col-xs-3 heading-icons text-right" style="padding-top: 5px;"> 
-      <button id="videoCallBtn" class="btn btn-sm" title="Iniciar videollamada" style="color: white; background: none; border: none; font-size: 28px; padding: 0px 10px; vertical-align: middle;">
+    <div class="col-sm-3 col-xs-3 heading-icons text-right" style="padding-top: 5px;">
+      <button id="videoCallBtn" title="Iniciar videollamada">
           <i class="zmdi zmdi-videocam"></i>
       </button>
-    
     </div>
   </div>
 
-
-
     <div class="row message" id="conversation">
       <?php
-      $QueryUserClick = ("SELECT UserIdSession FROM clickuser WHERE UserIdSession='$idConectado' LIMIT 1");
-      $QueryClick     = mysqli_query($con, $QueryUserClick);
-      $veririficaClick = mysqli_num_rows($QueryClick);
-      if ($veririficaClick == 0) {
-        $InserClick = ("INSERT INTO clickuser (UserIdSession,clickUser) VALUES ('$idConectado','$IdUser')");
-        $ResulInsertClick = mysqli_query($con, $InserClick);
+      $QueryVerificaClickUser = "SELECT id FROM clickuser WHERE UserIdSession= ?";
+      $stmtVerifica = mysqli_prepare($con, $QueryVerificaClickUser);
+      mysqli_stmt_bind_param($stmtVerifica, "i", $idConectado);
+      mysqli_stmt_execute($stmtVerifica);
+      $ResVerificaClickUser = mysqli_stmt_get_result($stmtVerifica);
+
+      $stmtClickUser = false;
+      if(mysqli_num_rows($ResVerificaClickUser) > 0){
+          $stmtClickUser = mysqli_prepare($con, "UPDATE clickuser SET clickUser=?, tipoClick='user' WHERE UserIdSession=?");
+          if ($stmtClickUser) mysqli_stmt_bind_param($stmtClickUser, "ii", $IdUser, $idConectado);
       } else {
-        $UpdateClick = ("UPDATE clickuser SET clickUser='$IdUser' WHERE UserIdSession='$idConectado'");
-        $ResultUpdateClick = mysqli_query($con, $UpdateClick);
+          $stmtClickUser = mysqli_prepare($con, "INSERT INTO clickuser (UserIdSession, clickUser, tipoClick) VALUES (?, ?, 'user')");
+          if ($stmtClickUser) mysqli_stmt_bind_param($stmtClickUser, "iis", $idConectado, $IdUser); // tipoClick es ENUM, no necesita 's' si es 'user' o 'group' directamente
+                                                                                                   // Debería ser "ii" si $IdUser es int
       }
+      if ($stmtClickUser) {
+          mysqli_stmt_execute($stmtClickUser);
+          mysqli_stmt_close($stmtClickUser);
+      }
+      mysqli_stmt_close($stmtVerifica);
 
 
-      //Mostrando msjs deacuerdo al Usuario seleccionado
-      $Msjs = ("SELECT * FROM msjs WHERE (user_id ='" . $idConectado . "' AND to_id='" . $IdUser . "') OR (user_id='" . $IdUser . "' AND to_id='" . $idConectado . "') ORDER BY id ASC");
-      $QueryMsjs = mysqli_query($con, $Msjs);
-
-      while ($UserMsjs = mysqli_fetch_array($QueryMsjs)) {
-        $archivo = $UserMsjs['archivos'];
-        $explode = explode('.', $archivo);
-        $extension_arch = array_pop($explode);
-
-        if ($idConectado == $UserMsjs['user_id']) { ?>
-          <div class="row message-body">
+      $MsjsQuery = "SELECT * FROM msjs WHERE tipo_chat='privado' AND 
+                ((user_id = ? AND to_id= ?) OR (user_id= ? AND to_id= ?)) 
+                ORDER BY id ASC";
+      $stmtMsjs = mysqli_prepare($con, $MsjsQuery);
+      mysqli_stmt_bind_param($stmtMsjs, "iiii", $idConectado, $IdUser, $IdUser, $idConectado);
+      mysqli_stmt_execute($stmtMsjs);
+      $QueryMsjs = mysqli_stmt_get_result($stmtMsjs);
 
 
+      if ($QueryMsjs) {
+        while ($UserMsjs = mysqli_fetch_array($QueryMsjs)) {
+          $archivo = $UserMsjs['archivos'];
 
-
-
-
-            <div class="col-sm-12 message-main-sender">
-              <div class="sender">
-                <div class="message-text">
-                  <?php
-                  if (!empty($UserMsjs['message'])) {
-                    echo $UserMsjs['message'];
-                  } else { ?>
-                    <img src="<?php echo 'archivos/' . $archivo; ?>" style="width: 100%; max-width: 250px;">
-                    <div class="row">
-                      <div class="col-md-12">
-                        <a class="boton_desc" download="" href="archivos/<?php echo $archivo; ?>" title="Descargar Imagen">Descargar
-                        </a>
+          if ($idConectado == $UserMsjs['user_id']) { ?>
+            <div class="row message-body">
+              <div class="col-sm-12 message-main-sender">
+                <div class="sender">
+                  <div class="message-text">
+                    <?php
+                    if (!empty($UserMsjs['message'])) {
+                      echo htmlspecialchars($UserMsjs['message']);
+                    } else if (!empty($archivo)) { ?>
+                      <img src="<?php echo 'archivos/' . htmlspecialchars($archivo); ?>" style="width: 100%; max-width: 250px;">
+                      <div class="row">
+                        <div class="col-md-12">
+                          <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar</a>
+                        </div>
                       </div>
-                    </div>
-                  <?php } ?>
+                    <?php } ?>
+                  </div>
+                  <span class="message-time pull-right">
+                    <?php echo htmlspecialchars($UserMsjs['fecha']);  ?>
+                  </span>
                 </div>
-                <span class="message-time pull-right">
-                  <?php echo $UserMsjs['fecha'];  ?>
-                </span>
               </div>
             </div>
-          </div>
-        <?php } else { ?>
-          <div class="row message-body">
-            <div class="col-sm-12 message-main-receiver">
-              <div class="receiver">
-                <div class="message-text">
-                  <?php
-                  if ($UserMsjs['message'] != "") {
-                    echo $UserMsjs['message'];
-                  } else { ?>
-                    <img src="<?php echo './archivos/' . $UserMsjs['archivos']; ?>" style="width: 100%; max-width: 250px;">
-                    <div class="row">
-                      <div class="col-md-12">
-                        <a class="boton_desc" download="" href="archivos/<?php echo $archivo; ?>" title="Descargar Imagen">Descargar
-                        </a>
+          <?php } else { ?>
+            <div class="row message-body">
+              <div class="col-sm-12 message-main-receiver">
+                <div class="receiver">
+                  <div class="message-text">
+                    <?php
+                    if (!empty($UserMsjs['message'])) {
+                      echo htmlspecialchars($UserMsjs['message']);
+                    } else if (!empty($archivo)) { ?>
+                      <img src="<?php echo 'archivos/' . htmlspecialchars($UserMsjs['archivos']); ?>" style="width: 100%; max-width: 250px;">
+                      <div class="row">
+                        <div class="col-md-12">
+                          <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar</a>
+                        </div>
                       </div>
-                    </div>
-                  <?php } ?>
+                    <?php } ?>
+                  </div>
+                  <span class="message-time pull-right">
+                    <?php echo htmlspecialchars($UserMsjs['fecha']);  ?>
+                  </span>
                 </div>
-                <span class="message-time pull-right">
-                  <?php echo $UserMsjs['fecha'];  ?>
-                </span>
               </div>
             </div>
-          </div>
-
-      <?php  }
+        <?php
+          }
+        }
+        mysqli_stmt_close($stmtMsjs);
+      } else {
+        echo "<p>Error al cargar mensajes: " . mysqli_error($con) . "</p>";
       }
       ?>
-
     </div>
 
-
-
     <div class="row reply" id="formnormal">
-
-    
-
-
-
       <form class="conversation-compose" id="formenviarmsj" name="formEnviaMsj">
         <input type="hidden" name="user_id" value="<?php echo $idConectado; ?>">
         <input type="hidden" name="to_id" value="<?php echo $rowUser['id']; ?>">
-        <input type="hidden" name="user" value="<?php echo $email_user; ?>">
-        <input type="hidden" name="to_user" value="<?php echo $rowUser['nombre_apellido']; ?> ">
+        <input type="hidden" name="user" value="<?php echo htmlspecialchars($email_user); ?>">
+        <input type="hidden" name="to_user" value="<?php echo htmlspecialchars($rowUser['nombre_apellido']); ?>">
+        <input type="hidden" name="tipo_chat" value="privado">
 
         <div class="emoji">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" id="smiley" x="3147" y="3209">
@@ -200,36 +233,27 @@
         
         <input class="input-msg" name="message" id="message" placeholder="Escribir tu Mensaje y presiona Enter..." autocomplete="off" autofocus="autofocus" required="true">
         <i class="zmdi zmdi-comment-image" style="font-size: 45px; color: grey;" title="Enviar Imagen." id="mostrarformenviarimg"></i>
-        
-     
       </form>
     </div>
 
-
-    <!---audio para cuando se envia un msj-->
     <audio class="audio" style="display:none;">
       <source src="effect.mp3" type="audio/mp3">
     </audio>
-    <!---fin del audio--->
 
-
-    <!---- form enviar img--->
     <div class="row reply" id="formenviaimg">
-      <form class="conversation-compose" id="formenviarmsj" name="formEnviaMsj" enctype="multipart/form-data">
+      <form class="conversation-compose" id="formEnviarArchivo" name="formEnviarArchivo" enctype="multipart/form-data">
         <input type="hidden" name="user_id" value="<?php echo $idConectado; ?>">
         <input type="hidden" name="to_id" value="<?php echo $rowUser['id']; ?>">
-        <input type="hidden" name="to_user" value="<?php echo $rowUser['nombre_apellido']; ?> ">
-        <input type="hidden" name="user" value="<?php echo $email_user; ?>">
-
-
+        <input type="hidden" name="to_user" value="<?php echo htmlspecialchars($rowUser['nombre_apellido']); ?> ">
+        <input type="hidden" name="user" value="<?php echo htmlspecialchars($email_user); ?>">
+        <input type="hidden" name="tipo_chat" value="privado_archivo"> 
         <div class="col-sm-12 col-xs-12 reply-recording">
           <label for="uploadFile" id="uploadIcon">
             <i class="zmdi zmdi-camera camara"></i>
           </label>
-          <input type="file" name="namearchivo" value="upload" id="uploadFile" class="uploadFile" required />
-       
+          <input type="file" name="namearchivo" id="uploadFile" class="uploadFile" required />
         </div>
-        <button class="send" name="enviar" id="botonenviarimg" name="botonenviarimg">
+        <button type="submit" class="send" id="botonenviarimg">
           <div class="circle">
             <i class="zmdi zmdi-mail-send" title="Enviar Imagen..."></i>
           </div>
@@ -237,73 +261,69 @@
         <i class="zmdi zmdi-mail-reply" style="font-size: 50px;color: grey;" id="volverformnormal" title="Volver . ."></i>
       </form>
     </div>
-
-
-
-
-
-
-
-
     
-  <?php } ?>
+  <?php 
+  mysqli_stmt_close($stmtUserSel); // Cerrar la sentencia preparada para la información del usuario
+  } else {
+    echo "<p>Usuario no encontrado o error en la consulta.</p>";
+  }
+  ?>
 
- <script type="text/javascript">
-    // Usar un nombre de variable que sea menos probable que colisione globalmente, 
-    // y lo inicializamos dentro del scope de esta carga de chat.
-    var currentChatProgresoView; // Renombrada para evitar cualquier posible colisión futura
+  <script type="text/javascript">
+    var currentChatProgresoView;
 
-    $(function() { // Esto se ejecuta cuando el HTML de UserSeleccionado.php está listo en el DOM
-      currentChatProgresoView = 0; // Inicializar/resetear el progreso para esta vista de chat
-      // Intentar obtener el valor de progreso si ya existe para este chat (ej. desde un data-attribute o localStorage)
-      // Por ahora, lo reiniciamos siempre al cargar.
+    $(function() {
+      currentChatProgresoView = 0;
       if ($('#chatProgress').length > 0) {
-          $('#chatProgress').val(currentChatProgresoView); // Actualizar la barra de progreso visual
+          $('#chatProgress').val(currentChatProgresoView);
       }
-
 
       function scrollConversationToEnd() {
         var conversation = $('#conversation');
         if (conversation.length > 0) {
-          conversation.animate({ scrollTop: conversation[0].scrollHeight }, 500); // Reducido el tiempo para ser más rápido
+          conversation.animate({ scrollTop: conversation[0].scrollHeight }, 100);
         }
       }
-      scrollConversationToEnd(); // Llamar al cargar
+      scrollConversationToEnd();
 
-      var idConectado = "<?php echo $idConectado; ?>";
-      var idUsuarioChatActual = $("input[name='to_id']", "#formenviarmsj").val(); // Obtener el ID del usuario con el que se chatea
-
-      // Función para buscar mensajes nuevos (tu lógica existente adaptada)
+      var idConectadoGlobal = parseInt("<?php echo $idConectado; ?>");
+      var idUsuarioChatActualGlobal = parseInt($("input[name='to_id']", "#formenviarmsj").val());
+      
       var mensajesInterval;
       function iniciarActualizacionMensajes() {
-        clearInterval(mensajesInterval); // Limpiar intervalo anterior
+        clearInterval(mensajesInterval);
         mensajesInterval = setInterval(function() {
-          // Solo busca si la ventana está activa/visible (opcional, para optimizar)
-          // if (document.hasFocus()) { 
+            if (isNaN(idUsuarioChatActualGlobal) || idUsuarioChatActualGlobal === 0) return;
+            
             $.ajax({
                 type: "POST",
-                url: "buscarMensajesNuevos.php", // Este script determina el 'clickUser' desde la BD basado en 'idConectado'
+                url: "buscarMensajesNuevos.php",
                 dataType: "json",
-                data: { idConectado: idConectado },
+                data: { idConectado: idConectadoGlobal },
                 success: function(data) {
-                    if (data.msj == true) { // Si buscarMensajesNuevos indica que hay msjs nuevos para el usuario actual EN el chat activo
-                        $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
-                           scrollConversationToEnd();
+                    if (data.msj == true) {
+                        $.post('get_active_clickuser.php', { userIdSession: idConectadoGlobal }, function(activeClickUserResponse) {
+                            var activeClickUserId = parseInt(activeClickUserResponse.trim());
+                            if (activeClickUserId === idUsuarioChatActualGlobal) {
+                                $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
+                                   scrollConversationToEnd();
+                                });
+                            }
                         });
                     }
                 }
             });
-          // }
-        }, 8000); // Llama cada 8 segundos
+        }, 8000); 
       }
-      iniciarActualizacionMensajes();
+      if (!isNaN(idUsuarioChatActualGlobal) && idUsuarioChatActualGlobal !== 0) {
+        iniciarActualizacionMensajes();
+      }
 
 
-      // Manejo del envío de mensajes al presionar Enter
       $("#formenviarmsj .input-msg").keypress(function(e) {
-        if (e.which == 13 && $(this).val().trim() !== '') {
+        var $inputMsg = $(this);
+        if (e.which == 13 && $inputMsg.val().trim() !== '') {
           e.preventDefault(); 
-
           var form = $("#formenviarmsj");
           var url = "acciones/RegistMsj.php";
           $.ajax({
@@ -322,7 +342,7 @@
                     });
                     setTimeout(function(){
                       $('#conversation').css({
-                        'background': 'url(\'assets/img/fondochat.jpg\')', // Ruta desde la raíz
+                        'background': 'url(\'assets/img/fondochat.jpg\')',
                         'animation': 'none'
                       });
                     }, 10000);
@@ -330,11 +350,10 @@
                   }
                   $('#chatProgress').val(currentChatProgresoView);
               }
-
-              $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
+              $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
                 scrollConversationToEnd();
               }); 
-              $("#formenviarmsj .input-msg").val("");
+              $inputMsg.val("");
               if ($(".audio").length > 0) $(".audio")[0].play();
             }
           });
@@ -342,7 +361,6 @@
         }
       });
 
-      // Lógica para mostrar/ocultar forms de enviar imagen
       $("#formenviaimg").hide();
       $("#mostrarformenviarimg").click(function() {
         $("#formnormal").hide();
@@ -353,74 +371,87 @@
         $("#formnormal").show(200);
       });
 
-      // Lógica para enviar imágenes (la tuya, adaptada para recargar mensajes)
       var enviandoImagen = false; 
-      $('body').off('click', '#botonenviarimg').on('click', '#botonenviarimg', async function(e) {
+      $('#formEnviarArchivo').on('submit', async function(e) {
         e.preventDefault();
         if (enviandoImagen) return;
         enviandoImagen = true; 
-
-        const formElement = $(this).closest('form')[0];
+        const formElement = this;
         const formData = new FormData(formElement);
-        // const idConectado = "<?php echo $idConectado; ?>"; // Ya está definido arriba
-        // const idUsuarioChatActual = $("input[name='to_id']", formElement).val(); // Obtener to_id del form actual
-        
         const namearchivo = $("#uploadFile", formElement).val();
         if (!namearchivo) {
           alert("Debes seleccionar una imagen");
           enviandoImagen = false;
           return;
         }
-
         try {
-          const response = await fetch('acciones/archivo.php', {
-            method: 'POST',
-            body: formData,
-          });
-          if (!response.ok) throw new Error('Error en la solicitud de subida de archivo');
-          
-          // const data = await response.text(); // archivo.php no debería devolver HTML para toda la conversación
-                                            // sino solo una confirmación o error.
-                                            // La recarga de mensajes se hace después.
-
+          const response = await fetch('acciones/archivo.php', { method: 'POST', body: formData });
+          if (!response.ok) throw new Error('Error en la subida');
           if ($(".audio").length > 0) $(".audio")[0].play(); 
-
-          $("#formenviaimg").hide();
-          $("#formnormal").show(200);
-
-          $("#conversation").load('MsjsUsers.php?id=' + idConectado + '&clickUser=' + idUsuarioChatActual, function() {
-            scrollConversationToEnd();
-          });
-          
+          $("#formenviaimg").hide(); $("#formnormal").show(200);
+          $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, scrollConversationToEnd);
           formElement.reset();
-        } catch (error) {
-          console.error('Error al enviar imagen:', error);
-          alert('Error al enviar la imagen.');
-        } finally {
-          enviandoImagen = false;
-        }
+        } catch (error) { console.error('Error al enviar imagen:', error); alert('Error al enviar la imagen.');
+        } finally { enviandoImagen = false; }
       });
-
-      // Script para Jitsi (ya lo tienes, asegúrate que #videoCallBtn exista y sea único)
-      $('body').off('click', '#videoCallBtn').on('click', '#videoCallBtn', function() {
-        const user1_id = parseInt("<?php echo $idConectado; ?>");
-        const user2_id = parseInt(idUsuarioChatActual); // Ya tenemos el ID del otro usuario
+      
+      // Manejador de clic para el botón de videollamada
+      $('#videoCallBtn').on('click', function() {
+        const user1_id = idConectadoGlobal; 
+        const user2_id = idUsuarioChatActualGlobal; 
         
+        if (isNaN(user1_id) || isNaN(user2_id) || user1_id === 0 || user2_id === 0) {
+            alert("Error: IDs de usuario no válidos para la videollamada.");
+            console.error("IDs para videollamada: User1:", user1_id, "User2:", user2_id);
+            return;
+        }
+
         let roomNameBase = "poiChatVideo_";
         if (user1_id < user2_id) {
             roomNameBase += user1_id + "_" + user2_id;
         } else {
             roomNameBase += user2_id + "_" + user1_id;
         }
-        const roomName = roomNameBase.replace(/\s+/g, "_").toLowerCase();
-        const jitsiUrl = `https://meet.jit.si/${roomName}`;
-        window.open(jitsiUrl, "_blank");
-      });
+        
+        const roomName = roomNameBase; 
+        const domain = 'meet.jit.si';
+        const jitsiUrl = `https://${domain}/${encodeURIComponent(roomName)}#config.prejoinPageEnabled=false`;
+        
+        console.log("Iniciando videollamada. Sala: " + roomName + ", URL: " + jitsiUrl);
+        window.open(jitsiUrl, '_blank'); 
 
+        // ENVIAR LA INVITACIÓN COMO UN MENSAJE DE CHAT:
+        var mensajeInvitacion = "Te he invitado a una videollamada. Haz clic para unirte: " + jitsiUrl;
+        var datosMensajeInvitacion = {
+            user_id: idConectadoGlobal,
+            to_id: idUsuarioChatActualGlobal,
+            user: "<?php echo htmlspecialchars($_SESSION['email_user']); ?>",
+            // Para obtener $rowUser['nombre_apellido'] aquí, necesitas asegurarte que esté disponible en este scope de JS.
+            // La variable PHP $rowUser solo existe durante la renderización del PHP.
+            // Podrías pasarlo a JS de forma similar a como pasas idConectado o idUsuarioChatActual,
+            // o recuperarlo del DOM si está visible en algún lugar del encabezado del chat.
+            // Por ahora, lo obtendremos del DOM si es posible:
+            to_user: $(".heading-name-meta").text().trim() || "Usuario", // Intenta obtenerlo del DOM
+            message: mensajeInvitacion,
+            tipo_chat: "privado" 
+        };
+
+        $.ajax({
+            type: "POST",
+            url: "acciones/RegistMsj.php",
+            data: datosMensajeInvitacion,
+            success: function() {
+                $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
+                    scrollConversationToEnd(); 
+                });
+            },
+            error: function() {
+                console.error("Error al enviar el mensaje de invitación a la videollamada.");
+                alert("No se pudo enviar la invitación por chat.");
+            }
+        });
+      });
     });
   </script>
 </body>
 </html>
-
-
-  

@@ -25,6 +25,9 @@
 ;
 # Volcado de tabla clickuser
 # ------------------------------------------------------------
+
+use database bd_chat_whatsapp;
+
 DROP TABLE IF EXISTS `clickuser`;
 CREATE TABLE `clickuser` (
   `id` int(10) NOT NULL AUTO_INCREMENT,
