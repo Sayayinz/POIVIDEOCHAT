@@ -90,12 +90,68 @@ if (isset($_SESSION['email_user']) != "") {
     <script src="http://netdna.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script type="text/javascript">
   
+
+  window.activeChatInterval = null;
+   
+
+  /**
+   * Inicia un temporizador para actualizar el chat activo.
+   * Detiene cualquier temporizador anterior.
+   * @param {string} type - 'user' o 'group'
+   * @param {number} id - El ID del usuario o del grupo
+   * @param {number} connectedId - El ID del usuario conectado
+   */
+  function startChatUpdate(type, id, connectedId) {
+    // 1. Detener cualquier temporizador de chat que esté corriendo
+    if (window.activeChatInterval) {
+      clearInterval(window.activeChatInterval);
+      // console.log("Temporizador de chat anterior detenido.");
+    }
+
+    if (!type || !id || !connectedId) {
+      // console.log("No se inicia nuevo temporizador: faltan datos.");
+      return; // No iniciar un nuevo temporizador si faltan datos
+    }
+
+    let url, intervalTime;
+
+    if (type === 'user') {
+      url = `MsjsUsers.php?id=${connectedId}&clickUser=${id}`;
+      intervalTime = 8000;
+    } else if (type === 'group') {
+      url = `MsjsGrupos.php?id_grupo=${id}&idConectado=${connectedId}`;
+      intervalTime = 7000;
+    } else {
+      return; // Tipo no válido
+    }
+
+    // 2. Iniciar el nuevo temporizador
+    // console.log(`Iniciando nuevo temporizador para ${type} ${id}`);
+    window.activeChatInterval = setInterval(function() {
+      // Opcional: una comprobación extra para no recargar si el panel de chat no está visible
+      if ($('#conversation').is(':visible')) {
+        // console.log("Refrescando chat:", url);
+        $("#conversation").load(url, function(response, status, xhr) {
+            if (status == "error") {
+                console.error("Error al refrescar el chat: " + xhr.status + " " + xhr.statusText);
+            }
+        });
+      }
+    }, intervalTime);
+  }
   // home.php
+
+
+
+
+  
 $(function() { // Este es el $(document).ready() principal
 
     load2(); // Carga inicial
 
     function load2() {
+
+      
         // console.log("load2: Iniciando carga de users.php");
         window.setTimeout(function() {
             $.post('users.php', { fetch: 1, idConectado: "<?php echo $idConectado; ?>" }, function(data) {

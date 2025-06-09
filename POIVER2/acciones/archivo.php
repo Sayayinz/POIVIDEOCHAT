@@ -35,7 +35,7 @@ if (isset($_FILES["namearchivo"]) && !empty($_FILES["namearchivo"]["name"])) {
   // Mover y guardar la imagen solo si no existe ya en el servidor
   if (!file_exists($target_path)) {
     if (move_uploaded_file($source, $target_path)) {
-      $sqlInsertImg = ("INSERT INTO msjs(user,user_id,to_user,to_id,fecha,nombre_equipo_user,leido,archivos) VALUES('$user','$user_id','$to_user','$to_id','$FechaMsj','$nombre_equipo_user','$leido','$nuevoNameFoto')");
+      $sqlInsertImg = ("INSERT INTO msjs(user, user_id, to_user, to_id, fecha, nombre_equipo_user, leido, archivos, tipo_mensaje) VALUES('$user','$user_id','$to_user','$to_id','$FechaMsj','$nombre_equipo_user','$leido','$nuevoNameFoto', 'archivo')");
       $resulInsertImg = mysqli_query($con, $sqlInsertImg);
     } else {
       echo "Ha ocurrido un error al cargar la imagen, por favor inténtelo de nuevo.<br>";

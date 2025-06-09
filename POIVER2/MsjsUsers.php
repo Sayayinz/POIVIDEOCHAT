@@ -1,57 +1,63 @@
 <?php
   header("Content-Type: text/html;charset=utf-8");
-  include('config/config.php');
-  $idConectado  = $_REQUEST['id']; // El usuario que está viendo el chat
+  include('config/config.php'); //
+  $idConectado  = isset($_REQUEST['id']) ? (int)$_REQUEST['id'] : 0;
+  $clickUser = isset($_REQUEST['clickUser']) ? (int)$_REQUEST['clickUser'] : 0;
 
-  // Determinar con quién es el chat (el 'clickUser')
-  if (isset($_REQUEST['clickUser']) && !empty($_REQUEST['clickUser'])) {
-      $clickUser = $_REQUEST['clickUser'];
-  } else {
-      // Si no se pasa clickUser, intenta obtenerlo de la tabla clickuser
-      // Esta lógica asume que clickuser siempre tiene el ID del *otro* participante en un chat privado
-      $QueryUserClick = ("SELECT clickUser FROM clickuser WHERE UserIdSession='$idConectado' AND tipoClick='user' LIMIT 1 ");
-      $QueryClick     = mysqli_query($con, $QueryUserClick);
-      if ($QueryClick && mysqli_num_rows($QueryClick) > 0) {
-        $UserClickData  = mysqli_fetch_array($QueryClick);
-        $clickUser      = $UserClickData['clickUser'];
-      } else {
-        // No se pudo determinar el otro usuario del chat, no mostrar mensajes o mostrar un error.
-        // echo "<p>No se pudo determinar el chat.</p>";
-        exit; 
-      }
+  if ($idConectado == 0 || $clickUser == 0) {
+      exit; // Salir si no hay datos válidos
   }
 
-  // Ahora $clickUser tiene el ID del OTRO usuario en la conversación privada
+  // Consulta para obtener los mensajes de la conversación privada
   $Msjs = ("SELECT * FROM msjs 
             WHERE tipo_chat='privado' AND 
-                  ((user_id ='$idConectado' AND to_id='$clickUser') OR (user_id='$clickUser' AND to_id='$idConectado')) 
+                  ((user_id = ? AND to_id = ?) OR (user_id = ? AND to_id = ?)) 
             ORDER BY id ASC");
-  $QueryMsjs = mysqli_query($con, $Msjs);
+            
+  $stmt = mysqli_prepare($con, $Msjs);
+  mysqli_stmt_bind_param($stmt, "iiii", $idConectado, $clickUser, $clickUser, $idConectado);
+  mysqli_stmt_execute($stmt);
+  $QueryMsjs = mysqli_stmt_get_result($stmt);
 
   if ($QueryMsjs) {
     while ($UserMsjs = mysqli_fetch_array($QueryMsjs)) {
       $archivo = $UserMsjs['archivos'];
-      // $explode = explode('.', $archivo); // No necesitas esto a menos que uses la extensión para algo
-      // $extension_arch = array_pop($explode);
+      $tipo_mensaje = $UserMsjs['tipo_mensaje'];
 
-      if ($idConectado == $UserMsjs['user_id']) { // Mensaje enviado por el usuario actual
+      if ($idConectado == $UserMsjs['user_id']) { // Mensaje enviado por el usuario actual (Sender)
 ?>
       <div class="row message-body">
         <div class="col-sm-12 message-main-sender">
           <div class="sender">
             <div class="message-text">
               <?php
-              if (!empty($UserMsjs['message'])) {
-                echo htmlspecialchars($UserMsjs['message']); // Siempre sanitiza la salida
-              } else if (!empty($archivo)) { ?>
-                <img src="<?php echo 'archivos/' . htmlspecialchars($archivo); ?>" style="width: 100%; max-width: 250px;">
+                if ($tipo_mensaje === 'ubicacion' && !empty($UserMsjs['latitud'])) {
+                    $lat = htmlspecialchars($UserMsjs['latitud']);
+                    $lon = htmlspecialchars($UserMsjs['longitud']);
+                    $mapsUrl = "https://www.google.com/maps?q={$lat},{$lon}&z=15";
+                    $mapIcon = "assets/img/map-icon.png";
+              ?>
+                <a href="<?php echo $mapsUrl; ?>" target="_blank" class="location-message">
+                    <img src="<?php echo $mapIcon; ?>" alt="Mapa" class="map-thumbnail">
+                    <span class="location-text">
+                        Mi ubicación
+                        <small>Ver en el mapa</small>
+                    </span>
+                </a>
+              <?php
+                } else if (!empty($archivo)) { // Mensaje de archivo
+              ?>
+                <img src="<?php echo 'archivos/' . htmlspecialchars($archivo); ?>" style="width: 100%; max-width: 250px; border-radius: 5px;">
                 <div class="row">
                   <div class="col-md-12">
-                    <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar
-                    </a>
+                    <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar</a>
                   </div>
                 </div>
-              <?php } ?>
+              <?php
+                } else { // Mensaje de texto por defecto
+                    echo htmlspecialchars($UserMsjs['message']);
+                }
+              ?>
             </div>
             <span class="message-time pull-right">
               <?php echo htmlspecialchars($UserMsjs['fecha']);  ?>
@@ -59,23 +65,39 @@
           </div>
         </div>
       </div>
-    <?php } else { // Mensaje recibido del otro usuario ?>
+    <?php } else { // Mensaje recibido del otro usuario (Receiver) ?>
       <div class="row message-body">
         <div class="col-sm-12 message-main-receiver">
           <div class="receiver">
             <div class="message-text">
+            <?php
+                if ($tipo_mensaje === 'ubicacion' && !empty($UserMsjs['latitud'])) {
+                    $lat = htmlspecialchars($UserMsjs['latitud']);
+                    $lon = htmlspecialchars($UserMsjs['longitud']);
+                    $mapsUrl = "https://www.google.com/maps?q={$lat},{$lon}&z=15";
+                    $mapIcon = "assets/img/map-icon.png";
+              ?>
+                <a href="<?php echo $mapsUrl; ?>" target="_blank" class="location-message">
+                    <img src="<?php echo $mapIcon; ?>" alt="Mapa" class="map-thumbnail">
+                    <span class="location-text">
+                        Ubicación compartida
+                        <small>Ver en el mapa</small>
+                    </span>
+                </a>
               <?php
-              if (!empty($UserMsjs['message'])) {
-                echo htmlspecialchars($UserMsjs['message']);
-              } else if (!empty($archivo)) { ?>
-                <img src="<?php echo 'archivos/' . htmlspecialchars($UserMsjs['archivos']); ?>" style="width: 100%; max-width: 250px;">
+                } else if (!empty($archivo)) { // Mensaje de archivo
+              ?>
+                <img src="<?php echo 'archivos/' . htmlspecialchars($archivo); ?>" style="width: 100%; max-width: 250px; border-radius: 5px;">
                 <div class="row">
                   <div class="col-md-12">
-                    <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar
-                    </a>
+                    <a class="boton_desc" download="<?php echo htmlspecialchars($archivo); ?>" href="archivos/<?php echo htmlspecialchars($archivo); ?>" title="Descargar Imagen">Descargar</a>
                   </div>
                 </div>
-              <?php } ?>
+              <?php
+                } else { // Mensaje de texto por defecto
+                    echo htmlspecialchars($UserMsjs['message']);
+                }
+              ?>
             </div>
             <span class="message-time pull-right">
               <?php echo htmlspecialchars($UserMsjs['fecha']);  ?>
@@ -89,4 +111,5 @@
   } else {
     echo "<p>Error al cargar mensajes: " . mysqli_error($con) . "</p>";
   }
+  mysqli_stmt_close($stmt);
   ?>

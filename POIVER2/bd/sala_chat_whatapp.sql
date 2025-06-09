@@ -167,4 +167,32 @@ ALTER TABLE `clickuser`
 ADD COLUMN `tipoClick` ENUM('user', 'group') DEFAULT 'user' AFTER `clickUser`;
   
 
-  
+  CREATE TABLE `recompensas_niveles` (
+  `id_nivel` INT PRIMARY KEY,
+  `nombre_nivel` VARCHAR(50),
+  `puntos_para_alcanzar` INT,
+  `color_contacto_fondo` VARCHAR(7), -- Ejemplo: #FFD700
+  `clase_css_marco_perfil` VARCHAR(50) -- Ejemplo: 'marco-nivel-oro'
+);
+
+-- Ejemplo de datos iniciales
+INSERT INTO `recompensas_niveles` (id_nivel, nombre_nivel, puntos_para_alcanzar, color_contacto_fondo, clase_css_marco_perfil) VALUES
+(1, 'Novato', 0, '#FFFFFF', 'marco-nivel-base'),
+(2, 'Aprendiz', 100, '#E0E0E0', 'marco-nivel-bronce'),
+(3, 'Veterano', 250, '#C0C0C0', 'marco-nivel-plata'),
+(4, 'Maestro', 500, '#FFD700', 'marco-nivel-oro'),
+(5, 'Leyenda', 1000, '#E67E22', 'marco-nivel-leyenda');
+
+CREATE TABLE `tareas_grupo` (
+  `id_tarea` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_grupo` INT NOT NULL,
+  `id_creador` INT NOT NULL,
+  `titulo_tarea` VARCHAR(255) NOT NULL,
+  `descripcion_tarea` TEXT DEFAULT NULL,
+  `fecha_creacion_tarea` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `completada_general` BOOLEAN DEFAULT FALSE, -- Indica si todos los miembros la completaron
+  FOREIGN KEY (`id_grupo`) REFERENCES `grupos`(`id_grupo`) ON DELETE CASCADE,
+  FOREIGN KEY (`id_creador`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `clickuser` ADD UNIQUE KEY `unique_UserIdSession` (`UserIdSession`);

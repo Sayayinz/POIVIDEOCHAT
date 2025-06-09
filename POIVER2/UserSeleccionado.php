@@ -88,7 +88,7 @@
     }
   }
 
-  $QueryUserSeleccionado = "SELECT * FROM users WHERE id= ? LIMIT 1";
+  $QueryUserSeleccionado = "SELECT *, puntos_recompensa, nivel_recompensa FROM users WHERE id= ? LIMIT 1"; //
   $stmtUserSel = mysqli_prepare($con, $QueryUserSeleccionado);
   mysqli_stmt_bind_param($stmtUserSel, "i", $IdUser);
   mysqli_stmt_execute($stmtUserSel);
@@ -225,11 +225,9 @@
         <input type="hidden" name="to_user" value="<?php echo htmlspecialchars($rowUser['nombre_apellido']); ?>">
         <input type="hidden" name="tipo_chat" value="privado">
 
-        <div class="emoji">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" id="smiley" x="3147" y="3209">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.153 11.603c.795 0 1.44-.88 1.44-1.962s-.645-1.96-1.44-1.96c-.795 0-1.44.88-1.44 1.96s.645 1.965 1.44 1.965zM5.95 12.965c-.027-.307-.132 5.218 6.062 5.55 6.066-.25 6.066-5.55 6.066-5.55-6.078 1.416-12.13 0-12.13 0zm11.362 1.108s-.67 1.96-5.05 1.96c-3.506 0-5.39-1.165-5.608-1.96 0 0 5.912 1.055 10.658 0zM11.804 1.01C5.61 1.01.978 6.034.978 12.23s4.826 10.76 11.02 10.76S23.02 18.424 23.02 12.23c0-6.197-5.02-11.22-11.216-11.22zM12 21.355c-5.273 0-9.38-3.886-9.38-9.16 0-5.272 3.94-9.547 9.214-9.547a9.548 9.548 0 0 1 9.548 9.548c0 5.272-4.11 9.16-9.382 9.16zm3.108-9.75c.795 0 1.44-.88 1.44-1.963s-.645-1.96-1.44-1.96c-.795 0-1.44.878-1.44 1.96s.645 1.963 1.44 1.963z" fill="#7d8489" />
-          </svg>
-        </div>
+       <div class="emoji" id="btnCompartirUbicacion" title="Compartir ubicación" style="cursor: pointer;">
+  <i class="zmdi zmdi-pin" style="font-size: 24px; color: #7d8489;"></i>
+</div>
         
         <input class="input-msg" name="message" id="message" placeholder="Escribir tu Mensaje y presiona Enter..." autocomplete="off" autofocus="autofocus" required="true">
         <i class="zmdi zmdi-comment-image" style="font-size: 45px; color: grey;" title="Enviar Imagen." id="mostrarformenviarimg"></i>
@@ -269,111 +267,192 @@
   }
   ?>
 
-  <script type="text/javascript">
-    var currentChatProgresoView;
 
-    $(function() {
-      currentChatProgresoView = 0;
-      if ($('#chatProgress').length > 0) {
-          $('#chatProgress').val(currentChatProgresoView);
-      }
+<script type="text/javascript">
 
-      function scrollConversationToEnd() {
-        var conversation = $('#conversation');
-        if (conversation.length > 0) {
-          conversation.animate({ scrollTop: conversation[0].scrollHeight }, 100);
-        }
-      }
-      scrollConversationToEnd();
+if (typeof window.PUNTOS_NIVEL === 'undefined') {
+    window.PUNTOS_NIVEL = {
+        1: 0, 2: 100, 3: 250, 4: 500, 5: 1000,
+    };
+}
+if (typeof window.MAX_NIVEL === 'undefined') {
+    window.MAX_NIVEL = 5;
+}
 
-      var idConectadoGlobal = parseInt("<?php echo $idConectado; ?>");
-      var idUsuarioChatActualGlobal = parseInt($("input[name='to_id']", "#formenviarmsj").val());
-      
-      var mensajesInterval;
-      function iniciarActualizacionMensajes() {
-        clearInterval(mensajesInterval);
-        mensajesInterval = setInterval(function() {
-            if (isNaN(idUsuarioChatActualGlobal) || idUsuarioChatActualGlobal === 0) return;
-            
-            $.ajax({
-                type: "POST",
-                url: "buscarMensajesNuevos.php",
-                dataType: "json",
-                data: { idConectado: idConectadoGlobal },
-                success: function(data) {
-                    if (data.msj == true) {
-                        $.post('get_active_clickuser.php', { userIdSession: idConectadoGlobal }, function(activeClickUserResponse) {
-                            var activeClickUserId = parseInt(activeClickUserResponse.trim());
-                            if (activeClickUserId === idUsuarioChatActualGlobal) {
-                                $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
-                                   scrollConversationToEnd();
-                                });
-                            }
-                        });
-                    }
+$(function() {
+    // Ahora puedes usar window.PUNTOS_NIVEL y window.MAX_NIVEL dentro de esta función.
+    // O si prefieres, puedes asignarlas a variables locales para mayor claridad aquí:
+    const PUNTOS_NIVEL_LOCAL = window.PUNTOS_NIVEL;
+    const MAX_NIVEL_LOCAL = window.MAX_NIVEL;
+
+    var puntos_totales_usuario_conectado;
+    var nivel_usuario_conectado_actual;
+    var currentChatProgresoView = 0;
+    
+    var idConectadoGlobal = parseInt("<?php echo $idConectado; ?>");
+    var idUsuarioChatActualGlobal = parseInt($("input[name='to_id']", "#formenviarmsj").val());
+
+    // console.log("UserSeleccionado.php cargado para chat con:", idUsuarioChatActualGlobal, ". Usuario conectado:", idConectadoGlobal);
+
+    var $chatProgress = $('#chatProgress');
+    if ($chatProgress.length === 0) {
+        // console.error("Elemento #chatProgress no encontrado.");
+    } else {
+        $chatProgress.val(0);
+    }
+
+    function cargarDatosInicialesUsuarioConectado() {
+        // console.log("Solicitando datos iniciales para usuario:", idConectadoGlobal);
+        $.ajax({
+            url: 'acciones/get_user_reward_info.php',
+            type: 'POST',
+            data: { userId: idConectadoGlobal },
+            dataType: 'json',
+            success: function(rewardInfo) {
+                if (rewardInfo && rewardInfo.status === 'success') {
+                    puntos_totales_usuario_conectado = parseInt(rewardInfo.puntos_recompensa);
+                    nivel_usuario_conectado_actual = parseInt(rewardInfo.nivel_recompensa);
+                    // console.log("Datos iniciales recibidos: Puntos=" + puntos_totales_usuario_conectado + ", Nivel=" + nivel_usuario_conectado_actual);
+                    actualizarBarraProgresoNivel();
+                } else {
+                    // console.error("Error get_user_reward_info:", rewardInfo.message);
+                    puntos_totales_usuario_conectado = 0;
+                    nivel_usuario_conectado_actual = 1;
+                    actualizarBarraProgresoNivel();
                 }
-            });
-        }, 8000); 
-      }
-      if (!isNaN(idUsuarioChatActualGlobal) && idUsuarioChatActualGlobal !== 0) {
-        iniciarActualizacionMensajes();
-      }
+            },
+            error: function() {
+                // console.error("Error AJAX get_user_reward_info.");
+                puntos_totales_usuario_conectado = 0;
+                nivel_usuario_conectado_actual = 1;
+                actualizarBarraProgresoNivel();
+            }
+        });
+    }
+    
+    cargarDatosInicialesUsuarioConectado();
 
+    function scrollConversationToEnd() {
+        var conversation = $('#conversation');
+        if (conversation.length > 0 && conversation[0].scrollHeight) {
+            conversation.scrollTop(conversation[0].scrollHeight);
+        }
+    }
+    // setTimeout(scrollConversationToEnd, 100); // Scroll inicial un poco después
 
-      $("#formenviarmsj .input-msg").keypress(function(e) {
+    if (!isNaN(idUsuarioChatActualGlobal) && idUsuarioChatActualGlobal !== 0) {
+        // Llama a la función global definida en home.php
+        startChatUpdate('user', idUsuarioChatActualGlobal, idConectadoGlobal);
+    }
+
+    function getPuntosParaSiguienteNivel(nivelActual) {
+        // Usar las constantes locales o las de window
+        if (nivelActual >= MAX_NIVEL_LOCAL || !PUNTOS_NIVEL_LOCAL[nivelActual + 1]) {
+            return PUNTOS_NIVEL_LOCAL[MAX_NIVEL_LOCAL] + (PUNTOS_NIVEL_LOCAL[MAX_NIVEL_LOCAL] - (PUNTOS_NIVEL_LOCAL[MAX_NIVEL_LOCAL-1] || PUNTOS_NIVEL_LOCAL[MAX_NIVEL_LOCAL]-100) );
+        }
+        return PUNTOS_NIVEL_LOCAL[nivelActual + 1];
+    }
+
+    function getPuntosDelNivelActual(nivelActual) {
+        return PUNTOS_NIVEL_LOCAL[nivelActual] || PUNTOS_NIVEL_LOCAL[1];
+    }
+
+    function actualizarBarraProgresoNivel() {
+        if (typeof puntos_totales_usuario_conectado === 'undefined' || typeof nivel_usuario_conectado_actual === 'undefined') {
+            if ($chatProgress.length) $chatProgress.val(0);
+            return;
+        }
+
+        let puntosNivelBase = getPuntosDelNivelActual(nivel_usuario_conectado_actual);
+        let puntosParaSiguiente = getPuntosParaSiguienteNivel(nivel_usuario_conectado_actual);
+        
+        let progresoEnNivel = puntos_totales_usuario_conectado - puntosNivelBase;
+        let rangoDelNivel = puntosParaSiguiente - puntosNivelBase;
+
+        if ($chatProgress.length) {
+            if (nivel_usuario_conectado_actual >= MAX_NIVEL_LOCAL && puntos_totales_usuario_conectado >= PUNTOS_NIVEL_LOCAL[MAX_NIVEL_LOCAL]) {
+                $chatProgress.val(100);
+            } else if (rangoDelNivel > 0) {
+                let porcentajeProgreso = (progresoEnNivel / rangoDelNivel) * 100;
+                $chatProgress.val(Math.min(Math.max(porcentajeProgreso, 0), 100));
+            } else { 
+                $chatProgress.val(100);
+            }
+        }
+    }
+
+    $("#formenviarmsj .input-msg").off('keypress').on('keypress', function(e) {
         var $inputMsg = $(this);
         if (e.which == 13 && $inputMsg.val().trim() !== '') {
-          e.preventDefault(); 
-          var form = $("#formenviarmsj");
-          var url = "acciones/RegistMsj.php";
-          $.ajax({
-            type: "POST",
-            url: url,
-            data: form.serialize(),
-            success: function(data) {
-              if ($('#chatProgress').length > 0) {
-                  currentChatProgresoView += 5; 
-                  if (currentChatProgresoView >= 100) {
-                    alert("¡Felicidades! Has ganado una mejora de emojis 🎉😎✨");
-                    $('#conversation').css({
-                      'background': 'linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)',
-                      'background-size': '200% 200%',
-                      'animation': 'rainbowBackground 5s ease infinite'
+            e.preventDefault();
+            var form = $("#formenviarmsj");
+            var url = "acciones/RegistMsj.php";
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: form.serialize(),
+                success: function(data_regist_msj) {
+                    $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
+                        scrollConversationToEnd();
                     });
-                    setTimeout(function(){
-                      $('#conversation').css({
-                        'background': 'url(\'assets/img/fondochat.jpg\')',
-                        'animation': 'none'
-                      });
-                    }, 10000);
-                    currentChatProgresoView = 0; 
-                  }
-                  $('#chatProgress').val(currentChatProgresoView);
-              }
-              $("#conversation").load('MsjsUsers.php?id=' + idConectadoGlobal + '&clickUser=' + idUsuarioChatActualGlobal, function() {
-                scrollConversationToEnd();
-              }); 
-              $inputMsg.val("");
-              if ($(".audio").length > 0) $(".audio")[0].play();
-            }
-          });
-          return false;
-        }
-      });
+                    $inputMsg.val("");
+                    if ($(".audio").length > 0) $(".audio")[0].play();
 
-      $("#formenviaimg").hide();
-      $("#mostrarformenviarimg").click(function() {
+                    currentChatProgresoView += 5;
+                    if (currentChatProgresoView >= 100) {
+                        $('#conversation').css({
+                            'background': 'linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)',
+                            'background-size': '200% 200%',
+                            'animation': 'rainbowBackground 5s ease infinite'
+                        });
+                        setTimeout(function(){
+                            $('#conversation').css({
+                            'background': 'url(\'assets/img/fondochat.jpg\')',
+                            'animation': 'none'
+                            });
+                        }, 10000);
+                        currentChatProgresoView = 0;
+                    }
+                    
+                    let nivel_anterior_conectado = nivel_usuario_conectado_actual;
+                    $.ajax({
+                        url: 'acciones/get_user_reward_info.php',
+                        type: 'POST',
+                        data: { userId: idConectadoGlobal },
+                        dataType: 'json',
+                        success: function(rewardInfo) {
+                            if (rewardInfo && rewardInfo.status === 'success') {
+                                puntos_totales_usuario_conectado = parseInt(rewardInfo.puntos_recompensa);
+                                nivel_usuario_conectado_actual = parseInt(rewardInfo.nivel_recompensa);
+                                actualizarBarraProgresoNivel();
+                                if (nivel_usuario_conectado_actual > nivel_anterior_conectado) {
+                                    alert("¡Felicidades! Has subido al Nivel " + nivel_usuario_conectado_actual + " 🎉😎✨");
+                                    // Aquí podrías llamar a la función para recargar la lista de usuarios si es necesario
+                                    // Ejemplo: if(typeof users === "function") users();
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            return false;
+        }
+    });
+
+    $("#mostrarformenviarimg").off('click').on('click', function() {
         $("#formnormal").hide();
         $("#formenviaimg").show(200);
-      });
-      $("#volverformnormal").click(function() {
+    });
+    $("#volverformnormal").off('click').on('click', function() {
         $("#formenviaimg").hide();
         $("#formnormal").show(200);
-      });
+    });
 
-      var enviandoImagen = false; 
-      $('#formEnviarArchivo').on('submit', async function(e) {
+    $('#formEnviarArchivo').off('submit').on('submit', async function(e) {
         e.preventDefault();
+        // ... (tu código de envío de imagen)
+        // Asegúrate de que 'enviandoImagen' esté declarado si lo usas aquí
+        var enviandoImagen = false; // O muévelo a un scope más amplio si es necesario
         if (enviandoImagen) return;
         enviandoImagen = true; 
         const formElement = this;
@@ -393,49 +472,36 @@
           formElement.reset();
         } catch (error) { console.error('Error al enviar imagen:', error); alert('Error al enviar la imagen.');
         } finally { enviandoImagen = false; }
-      });
-      
-      // Manejador de clic para el botón de videollamada
-      $('#videoCallBtn').on('click', function() {
+    });
+    
+    $('#videoCallBtn').off('click').on('click', function() {
+        // ... (tu código de videollamada)
         const user1_id = idConectadoGlobal; 
         const user2_id = idUsuarioChatActualGlobal; 
         
         if (isNaN(user1_id) || isNaN(user2_id) || user1_id === 0 || user2_id === 0) {
             alert("Error: IDs de usuario no válidos para la videollamada.");
-            console.error("IDs para videollamada: User1:", user1_id, "User2:", user2_id);
             return;
         }
-
         let roomNameBase = "poiChatVideo_";
         if (user1_id < user2_id) {
             roomNameBase += user1_id + "_" + user2_id;
         } else {
             roomNameBase += user2_id + "_" + user1_id;
         }
-        
         const roomName = roomNameBase; 
         const domain = 'meet.jit.si';
         const jitsiUrl = `https://${domain}/${encodeURIComponent(roomName)}#config.prejoinPageEnabled=false`;
-        
-        console.log("Iniciando videollamada. Sala: " + roomName + ", URL: " + jitsiUrl);
         window.open(jitsiUrl, '_blank'); 
-
-        // ENVIAR LA INVITACIÓN COMO UN MENSAJE DE CHAT:
         var mensajeInvitacion = "Te he invitado a una videollamada. Haz clic para unirte: " + jitsiUrl;
         var datosMensajeInvitacion = {
             user_id: idConectadoGlobal,
             to_id: idUsuarioChatActualGlobal,
             user: "<?php echo htmlspecialchars($_SESSION['email_user']); ?>",
-            // Para obtener $rowUser['nombre_apellido'] aquí, necesitas asegurarte que esté disponible en este scope de JS.
-            // La variable PHP $rowUser solo existe durante la renderización del PHP.
-            // Podrías pasarlo a JS de forma similar a como pasas idConectado o idUsuarioChatActual,
-            // o recuperarlo del DOM si está visible en algún lugar del encabezado del chat.
-            // Por ahora, lo obtendremos del DOM si es posible:
-            to_user: $(".heading-name-meta").text().trim() || "Usuario", // Intenta obtenerlo del DOM
+            to_user: $(".heading-name-meta").text().trim() || "Usuario", 
             message: mensajeInvitacion,
             tipo_chat: "privado" 
         };
-
         $.ajax({
             type: "POST",
             url: "acciones/RegistMsj.php",
@@ -446,12 +512,14 @@
                 });
             },
             error: function() {
-                console.error("Error al enviar el mensaje de invitación a la videollamada.");
                 alert("No se pudo enviar la invitación por chat.");
             }
         });
-      });
     });
-  </script>
+
+    setTimeout(scrollConversationToEnd, 250); // Un poco más de delay por si acaso
+
+}); // Fin de $(function() {})
+</script>
 </body>
 </html>

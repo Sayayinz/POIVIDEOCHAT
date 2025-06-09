@@ -116,21 +116,62 @@ if (isset($_SESSION['email_user']) != "") {
 
     // SEGUNDO: Listar Usuarios Individuales
     $QueryUsers = ("SELECT 
-        id,imagen,
-        email_user,
-        nombre_apellido,
-        fecha_session,
-        estatus 
-      FROM users WHERE id !='$idConectado' ORDER BY nombre_apellido ASC "); 
+    id,imagen,
+    email_user,
+    nombre_apellido,
+    fecha_session,
+    estatus,
+    puntos_recompensa,  -- Añadido
+    nivel_recompensa    -- Añadido
+  FROM users WHERE id !='$idConectado' ORDER BY nombre_apellido ASC ");
     $resultadoQueryUsers = mysqli_query($con, $QueryUsers); 
 
     while ($FilaUsers = mysqli_fetch_array($resultadoQueryUsers)) { 
       $id_persona     = $FilaUsers['id']; 
 
+
+$clase_marco_nivel_exterior = ''; // Para el div contenedor
+$estilo_borde_conexion_interior = '';
+      $nivel_usuario = $FilaUsers['nivel_recompensa'];
+$puntos_usuario = $FilaUsers['puntos_recompensa'];
+$clase_marco_perfil = 'marco-nivel-base'; // Clase por defecto
+$color_contacto_fondo = 'transparent'; // Color por defecto o el que ya tengas
       $resultado_privado = ("SELECT COUNT(*) as numero_filas FROM msjs WHERE user_id='$id_persona' AND to_id='$idConectado' AND leido='NO' AND tipo_chat='privado'"); 
       $re_privado  = mysqli_query($con, $resultado_privado); 
       $data_privado = mysqli_fetch_assoc($re_privado); 
       $no_leidos_privado = $data_privado['numero_filas']; 
+
+switch ($nivel_usuario) {
+    case 1:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-1'; // Gris sutil o sin marco especial
+        break;
+    case 2:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-2'; // Bronce
+        break;
+    case 3:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-3'; // Plata
+        break;
+    case 4:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-4'; // Oro
+        break;
+    case 5:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-5'; // Leyenda
+        break;
+    default:
+        $clase_marco_nivel_exterior = 'marco-exterior-nivel-base';
+}
+
+if ($FilaUsers['estatus'] != 'Inactiva') {
+    $estilo_borde_conexion_interior = 'border: 2px solid #28a745;'; // Verde para activo
+} else {
+    $estilo_borde_conexion_interior = 'border: 2px solid #696969;'; // Gris para inactivo
+}
+
+
+
+
+
+
 
       if ($no_leidos_privado > 0) { 
     ?>
@@ -142,36 +183,36 @@ if (isset($_SESSION['email_user']) != "") {
     <?php
       }
     ?>
-      <div class="row sideBar-body" data-id="<?php echo $FilaUsers['id']; ?>" data-type="user"> 
-        <div class="col-sm-3 col-xs-3 sideBar-avatar">
-          <?php
-          if ($FilaUsers['estatus'] != 'Inactiva') { ?> 
-            <div class="avatar-icon">
-              <img src="<?php echo 'imagenesperfil/' . $FilaUsers['imagen']; ?>" class="notification-container" style="border:3px solid #28a745 !important;"> 
-            </div>
-          <?php } else { ?>
-            <div class="avatar-icon">
-              <img src="<?php echo 'imagenesperfil/' . $FilaUsers['imagen']; ?>" class="notification-container" style="border:3px solid #696969 !important;"> 
-            </div>
-          <?php } ?>
-        </div>
-        <div class="col-sm-9 col-xs-9 sideBar-main">
-          <div class="row">
-            <div class="col-sm-8 col-xs-8 sideBar-name">
-              <span class="name-meta">
-                <?php echo $FilaUsers['nombre_apellido']; ?> 
-              </span>
-            </div>
-            <div class="col-sm-4 col-xs-4 pull-right sideBar-time" style="color:#93918f;">
-              <span class="notification-counter">
-                <?php echo $no_leidos_privado; ?> 
-              </span>
-            </div>
-          </div>
-        </div>
+<div class="row sideBar-body" data-id="<?php echo $FilaUsers['id']; ?>" data-type="user" style="background-color: <?php echo $color_contacto_fondo; ?>;">
+  <div class="col-sm-3 col-xs-3 sideBar-avatar">
+    <div class="avatar-icon">
+      <div class="marco-avatar-nivel <?php echo $clase_marco_nivel_exterior; ?>">
+        <img src="<?php echo 'imagenesperfil/' . htmlspecialchars($FilaUsers['imagen']); ?>"
+             class="imagen-perfil-interna"
+             style="<?php echo $estilo_borde_conexion_interior; ?>"
+             alt="<?php echo htmlspecialchars($FilaUsers['nombre_apellido']); ?>">
       </div>
-    <?php } // Fin del bucle de usuarios
-    ?>
+    </div>
+  </div>
+  <div class="col-sm-9 col-xs-9 sideBar-main">
+    <div class="row">
+      <div class="col-sm-8 col-xs-8 sideBar-name">
+        <span class="name-meta">
+          <?php echo htmlspecialchars($FilaUsers['nombre_apellido']); ?>
+          <span class="user-level-indicator">(Nivel: <?php echo $nivel_usuario; ?>)</span>
+        </span>
+      </div>
+      <div class="col-sm-4 col-xs-4 pull-right sideBar-time" style="color:#93918f;">
+        <?php if ($no_leidos_privado > 0) : ?>
+          <span class="notification-counter">
+            <?php echo $no_leidos_privado; ?>
+          </span>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+<?php } // Fin del bucle de usuarios ?>
   </div> 
 
   

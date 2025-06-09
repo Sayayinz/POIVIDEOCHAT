@@ -761,6 +761,313 @@ transform: translateX(-50%) translateY(-50%);
 }
 
 
+
+
+/* En assets/css/home.css */
+
+.sideBar-avatar .avatar-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px; /* Un poco más grande para acomodar el marco exterior visible */
+  height: 60px;
+}
+
+.marco-avatar-nivel {
+  position: relative; /* Para posicionar efectos como el box-shadow correctamente */
+  padding: 3px;      /* Este padding es el espacio ENTRE el borde de nivel y el borde de conexión */
+  border-radius: 50%;
+  display: inline-flex; /* Para que se ajuste a la imagen contenida + padding */
+  justify-content: center;
+  align-items: center;
+  /* El borde y box-shadow se aplicarán por las clases de nivel */
+  /* Ejemplo de un borde base si ninguna clase de nivel lo define */
+  /* border: 3px solid transparent; */
+}
+
+.marco-avatar-nivel .imagen-perfil-interna {
+  display: block;
+  width: 42px;    /* Tamaño de la imagen interior (ej: 51px total - 3px padding izq - 3px padding der - 3px borde nivel = 42px) */
+  height: 42px;   /* Debe ser menor que el contenedor para que se vea el padding y el borde exterior */
+  border-radius: 50%;
+  object-fit: cover;
+  /* El borde de conexión (verde/gris) se aplica inline directamente a la etiqueta img */
+  /* Ejemplo de estilo de borde de conexión que se aplicaría inline:
+     border: 2px solid #28a745; (para activos)
+     border: 2px solid #696969; (para inactivos)
+  */
+}
+
+/* Clases para los MARCOS EXTERIORES de NIVEL (aplicadas a .marco-avatar-nivel) */
+.marco-exterior-nivel-base {
+  /* Podrías querer un borde sutil por defecto o nada */
+  /* border: 3px solid #e0e0e0; */ /* Un gris muy claro */
+}
+
+.marco-exterior-nivel-1 {
+  border: 3px solid #b0bec5; /* Gris azulado sutil */
+}
+
+.marco-exterior-nivel-2 {
+  border: 3px solid #cd7f32; /* Bronce */
+  box-shadow: 0 0 5px rgba(205, 127, 50, 0.7);
+}
+
+.marco-exterior-nivel-3 {
+  border: 3px solid #c0c0c0; /* Plata */
+  box-shadow: 0 0 7px rgba(192, 192, 192, 0.8);
+}
+
+.marco-exterior-nivel-4 {
+  border: 3px solid #ffd700; /* Oro */
+  box-shadow: 0 0 9px rgba(255, 215, 0, 0.9);
+}
+
+.marco-exterior-nivel-5 {
+  border: 4px solid #e67e22; /* Naranja (Leyenda) - un poco más grueso */
+  box-shadow: 0 0 12px rgba(220, 100, 0, 1);
+  animation: pulse-legend-border-exterior 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-legend-border-exterior {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(220, 100, 0, 1), 0 0 5px rgba(255, 165, 0, 0.7);
+  }
+  50% {
+    transform: scale(1.03); /* Sutilmente más grande */
+    box-shadow: 0 0 18px rgba(255, 120, 0, 1), 0 0 10px rgba(255, 180, 50, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(220, 100, 0, 1), 0 0 5px rgba(255, 165, 0, 0.7);
+  }
+}
+
+/* Asegúrate que el contenedor del avatar en la barra lateral principal no corte los efectos de sombra */
+.sideBar-avatar {
+  overflow: visible; /* Permitir que las sombras se muestren */
+}
+
+/* ... (resto de tu CSS) ... */
+
+
+
+
+#panelLateralTareas {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 60px; /* Ajusta según la altura de tu cabecera */
+    width: 280px; /* O el ancho que prefieras */
+    height: calc(100% - 120px); /* Cabecera (60px) + Input de mensaje (60px) */
+    background-color: #fff9e6; /* Naranja muy pálido */
+    border-left: 1px solid #ffe0b2;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    z-index: 100;
+    padding: 8px; /* Padding general del panel reducido */
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+#panelLateralTareas h4 { /* Título "Tareas del Grupo" */
+    color: #d9532a;
+    margin-top: 0;      /* Sin margen superior */
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(0,0,0,0.08); /* Separador más sutil */
+    font-weight: bold;
+}
+
+#panelLateralTareas h5 { /* Título "Crear Nueva Tarea" */
+    color: #d9532a;
+    margin-top: 15px;
+    margin-bottom: 8px;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+/* Contenedor de la lista de tareas */
+#listaTareasGrupo {
+    padding: 0;
+}
+
+/* Cada item de tarea */
+.tarea-item {
+    background-color: #fff3cd; /* Amarillo para tareas activas */
+    border: 1px solid #ffeeba;
+    padding: 8px 10px; /* Padding interno del item */
+    margin-bottom: 6px; /* Espacio entre items de tarea */
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.tarea-item-header { /* Nuevo div para agrupar título y controles */
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* Centra verticalmente título y checkbox/botón */
+    margin-bottom: 4px; /* Pequeño espacio antes de la descripción/fecha */
+}
+
+.tarea-item-titulo {
+    font-size: 0.95em;
+    color: #856404; /* Texto oscuro para el título */
+    font-weight: bold; /* Hacerlo negrita */
+    margin: 0; /* Quitar márgenes del strong/p que uses para el título */
+    padding: 0;
+    flex-grow: 1; /* Permite que el título ocupe el espacio disponible */
+    word-break: break-word; /* Para títulos largos */
+}
+
+.tarea-item-controles { /* Div para el checkbox y botón de eliminar */
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Espacio entre checkbox y botón */
+}
+
+.tarea-item-descripcion {
+    font-size: 0.85em;
+    color: #5a5a5a; /* Un gris más oscuro para la descripción */
+    margin-top: 0; /* Ajusta según necesites */
+    margin-bottom: 3px; /* Pequeño espacio antes de la fecha */
+    padding: 0;
+    line-height: 1.3; /* Mejorar legibilidad de descripciones largas */
+    word-break: break-word;
+}
+
+.tarea-item-fecha {
+    font-size: 0.75em;
+    color: #777;
+    display: block; /* Asegura que esté en su propia línea */
+    margin-top: 0;
+    padding: 0;
+    text-align: right; /* Opcional: alinear fecha a la derecha */
+}
+
+/* Tarea completada por todos */
+.tarea-item.tarea-completada-general {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+.tarea-item.tarea-completada-general .tarea-item-titulo {
+    color: #155724;
+    text-decoration: line-through;
+}
+.tarea-item.tarea-completada-general .tarea-item-descripcion,
+.tarea-item.tarea-completada-general .tarea-item-fecha {
+    color: #388e3c; /* Un verde más oscuro para el texto */
+}
+
+
+.checkbox-marcar-tarea {
+    margin: 0;
+    vertical-align: middle;
+    transform: scale(1.1);
+    cursor: pointer;
+}
+.checkbox-marcar-tarea:disabled {
+    cursor: not-allowed;
+}
+
+.btn-eliminar-tarea {
+    padding: 1px 5px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    vertical-align: middle;
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+.btn-eliminar-tarea:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+.btn-eliminar-tarea i.zmdi-delete {
+    font-size: 14px; /* Ajustar tamaño del icono dentro del botón */
+}
+
+
+/* Formulario Crear Tarea */
+#formularioCrearTarea {
+    margin-top: 15px;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+}
+#formularioCrearTarea .form-group {
+    margin-bottom: 8px;
+}
+#formularioCrearTarea .form-group label {
+    font-weight: normal;
+    color: #59452d;
+    font-size:0.9em;
+    margin-bottom: 3px;
+}
+#formularioCrearTarea .form-control { /* Estilo para inputs y textarea */
+    height: auto;
+    padding: 6px 10px;
+    font-size: 0.9em;
+    border-radius: 3px;
+    border: 1px solid #ced4da; /* Borde estándar de Bootstrap */
+    width: 100%; /* Asegurar que ocupen el ancho */
+    box-sizing: border-box; /* Incluir padding y border en el width total */
+}
+#formularioCrearTarea textarea.form-control {
+    min-height: 40px; /* Altura mínima para textarea */
+}
+#formularioCrearTarea .btn { /* Estilo general para botones en el form */
+    margin-top: 5px; /* Un pequeño margen superior para los botones */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.location-message {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    max-width: 220px; /* Ancho máximo para el bloque de ubicación */
+}
+.location-message:hover {
+    text-decoration: none;
+    opacity: 0.8;
+}
+.map-thumbnail {
+    width: 60px;  /* Tamaño reducido para el icono */
+    height: 60px;
+    border-radius: 5px;
+    margin-right: 10px;
+    object-fit: cover;
+    border: 1px solid #ddd;
+    background-color: #f0f0f0; /* Color de fondo si la imagen no carga */
+}
+.location-text {
+    font-size: 1.0em; /* Tamaño de fuente normalizado */
+    font-weight: bold;
+}
+.location-text small {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #007bff; /* Color de link para 'Ver en el mapa' */
+    display: block;
+}
+
+
+
+
 }
 
 
